@@ -1,13 +1,15 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
-const char* ssid = "FASTWEB-Famiglia";
-const char* password = "Vaiavanticosi3";
-const char* mac = "aa:bb:cc:02:0b:11";
+const char* ssid = "TIM_MF920V_7344";
+const char* password = "81135633";
 
 uint8_t Mac[6];
-unsigned long previousMillis = 0;
-unsigned long interval = 5000;
+char Mac_str[18];
+
+uint32_t timeout = 2000;
+uint8_t ret = 0;
+uint8_t retW = 0;
 
 int current_state;
 int future_state;
@@ -19,9 +21,8 @@ enum states{
 };
 
 const uint16_t port = 5050;
-const char * host = "192.168.1.145";
-uint8_t ret = 0;
-uint8_t retW = 0;
+const char* host = "192.168.0.144";
+
 WiFiClient client;
 
 
@@ -44,7 +45,7 @@ void initWiFi() {
 
 
 void ServerConnection(){
-  ret = client.connect(host, port);
+  ret = client.connect(host, port, timeout);
 
   if(ret == true){
     Serial.println("Connected to server successful!");
@@ -58,7 +59,7 @@ void ServerConnection(){
 
 
 void writeClient(){
-  client.print(F((char*) Mac));
+  client.print(F(Mac_str));
 }
 
 
@@ -99,14 +100,17 @@ void setup() {
   Serial.begin(9600);
   disconnect_next();
   current_state = future_state;
+
   WiFi.macAddress(Mac);
+  sprintf(Mac_str, "%02x:%02x:%02x:%02x:%02x:%02x", Mac[0], 
+       Mac[1], Mac[2], Mac[3], Mac[4], Mac[5]);
+  
 }
 
 
 void loop(){
-  unsigned long currentMillis = millis();
+  
   Serial.println(current_state);
-  previousMillis = currentMillis;
 
   if(current_state==disconnected){
     disconnect_next();
