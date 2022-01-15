@@ -19,8 +19,8 @@ socket.bind(ADDR) # tutto ciò che si connette a questo indirizzo incontrerà il
 
 macAddress = hex(uuid.getnode())
 time_wait = 2
-string_server_write = "ec2-35-158-108-18.eu-central-1.compute.amazonaws.com:8000"
-string_server_read = "ec2-35-158-108-18.eu-central-1.compute.amazonaws.com:8001"
+string_server_write = "ec2-3-69-25-163.eu-central-1.compute.amazonaws.com:8000"
+string_server_read = "ec2-3-69-25-163.eu-central-1.compute.amazonaws.com:8001"
 
 People = 0
 
@@ -88,15 +88,19 @@ class SonarThread(threading.Thread):
         connected=True
         while connected:
             try:
-                # mi aspetto di ricevere ogni messaggio come "0+MAC" oppure "1+MAC", cioè 19 caratteri.
-                # NB: 0--> uscito, 1--> entrato
-                msg=self.conn.recv(19).decode(FORMAT)
+                # mi aspetto di ricevere ogni messaggio come "-1+MAC" oppure "1+MAC", cioè 20 caratteri.
+                # NB: -1 --> uscito, +1--> entrato
+                move=float(self.conn.recv(2).decode(FORMAT))
+                mac=self.conn.recv(17).decode(FORMAT)
                 # divido il messaggio di entrata/uscita dal mac address
-                splitted=msg.split("+")
-                move=splitted[0]
-                mac=splitted[1]
+                #splitted=msg.split("+")
+                print("messaggio ricevuto")
+                print(move)
+                print(mac)
+                #move=float(splitted[0])
+                #mac=splitted[1]
                 self.check_presenza(move,mac)
-                print(f"[{self.addr}]: {msg}")
+                print(f"[{self.addr}]: {move}")
             except:
                 print("[TIMEOUT] sono passati più di due secondi")
             #msg=conn.recv(msg_length)
@@ -113,26 +117,25 @@ class SonarThread(threading.Thread):
     def check_presenza(self, move,mac):
         self.lock.acquire()  #per il thread safe
         global People
-        if move.equals("0"):
-            if(People > 0):   #(controllare anche prima se il valore di lollo è positivo o negativo)if people + valore_di_lollo >=0 allora people=people+valore_di_lollo, altrimenti people=0
-                People-= 1
+        print("[CHECK PRESENZA]")
+        People+=move
 
-        if move.equals("1"):
-            if(People == 0):
-                self.write_msg_cloud(move,mac)
-                print("c'è qualcuno in casa")
-            People+=1
-
-        if (People == 0):
+        if People <=0:
+            People=0
             self.write_msg_cloud(move,mac)
             print("non ce nessuno in casa")
-        
+
+        if People>=1:
+            self.write_msg_cloud(move,mac)
+            print("c'è qualcuno in casa")
+            
         self.lock.release()
 
 
     def write_msg_cloud(self,move,mac):
+        print("[WRITE MSG TO CLOUD]")
         conn = http.HTTPConnection(string_server_write)
-        conn.request("POST", "/Move", move+"+"+mac)
+        conn.request("POST", "/Move", str(move)+"+"+mac)
         response = conn.getresponse()
         conn.close()
 
@@ -152,7 +155,7 @@ def start():
             print("[MAC RECEIVED]: " + mac)
             if re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower()): #https://stackoverflow.com/questions/7629643/how-do-i-validate-the-format-of-a-mac-address
                 mac_recv=True
-                check_mac(mac)
+                check_mac(mac,dict)
             
         #id = conn.recv(1).decode(FORMAT)
         #if id == '1' : (sonars)
@@ -167,7 +170,7 @@ def start():
         print(f"[CONNESSIONI ATTIVE] {threading.activeCount()-1}")
         
 
-def check_mac(mac):
+def check_mac(mac,dict):
     #controllo che non ci sia un elemento nel dizionario con lo stesso mac
     if mac in dict:
         print("[DISPOSITIVO GIA CONNESSO]: "+ mac)
