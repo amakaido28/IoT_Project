@@ -3,7 +3,6 @@ import threading
 import re
 import http.client as http
 import uuid
-
 #mettiamo ciascun gestore di messaggio in un thread diverso, ed ogni thread gestisce la connessione con un singolo client
 
 HEADER=64 #64 bytes
@@ -20,8 +19,8 @@ socket.bind(ADDR) # tutto ciò che si connette a questo indirizzo incontrerà il
 
 macAddress = hex(uuid.getnode())
 time_wait = 2
-string_server_write = "ec2-35-158-108-18.eu-central-1.compute.amazonaws.com:8000"
-string_server_read = "ec2-35-158-108-18.eu-central-1.compute.amazonaws.com:8001"
+string_server_write = "ec2-3-69-25-163.eu-central-1.compute.amazonaws.com:8000"
+string_server_read = "ec2-3-69-25-163.eu-central-1.compute.amazonaws.com:8001"
 
 People = 0
 
@@ -82,21 +81,26 @@ class SonarThread(threading.Thread):
         self.conn = args[0]
         self.addr = args[1]
         self.stop = False
-
+        self.lock = threading.Lock()
 
     def run(self):
         print(f"[NUOVA CONNESSIONE] {self.addr} connesso.")
         connected=True
         while connected:
             try:
-                #non sappiamo quanto sarà lungo il messaggio che dobbiamo leggere
-                msg=self.conn.recv(17).decode(FORMAT)
-                if msg==DISCONNECT_MESSAGE:
-                    connected=False
-                
-                self.check_presenza(msg)
-
-                print(f"[{self.addr}]: {msg}")
+                # mi aspetto di ricevere ogni messaggio come "-1+MAC" oppure "1+MAC", cioè 20 caratteri.
+                # NB: -1 --> uscito, +1--> entrato
+                move=float(self.conn.recv(2).decode(FORMAT))
+                mac=self.conn.recv(17).decode(FORMAT)
+                # divido il messaggio di entrata/uscita dal mac address
+                #splitted=msg.split("+")
+                print("messaggio ricevuto")
+                print(move)
+                print(mac)
+                #move=float(splitted[0])
+                #mac=splitted[1]
+                self.check_presenza(move,mac)
+                print(f"[{self.addr}]: {move}")
             except:
                 print("[TIMEOUT] sono passati più di due secondi")
             #msg=conn.recv(msg_length)
@@ -110,27 +114,28 @@ class SonarThread(threading.Thread):
         self.conn.close()
 
 
-    def check_presenza(self, msg):
+    def check_presenza(self, move,mac):
+        self.lock.acquire()  #per il thread safe
         global People
+        print("[CHECK PRESENZA]")
+        People+=move
 
-        if msg=="USCITO":
-            if(People > 0):
-                People-= 1
-
-        if msg=="ENTRATO":
-            if(People == 0):
-                self.write_msg_cloud(1)
-                print("c'è qualcuno in casa")
-            People+=1
-
-        if (People == 0):
-            self.write_msg_cloud(0)
+        if People <=0:
+            People=0
+            self.write_msg_cloud(0,mac)
             print("non ce nessuno in casa")
 
+        if People>=1:
+            self.write_msg_cloud(1,mac)
+            print("c'è qualcuno in casa")
+            
+        self.lock.release()
 
-    def write_msg_cloud(self, msg):
+
+    def write_msg_cloud(self,mess,mac):
+        print("[WRITE MSG TO CLOUD]")
         conn = http.HTTPConnection(string_server_write)
-        conn.request("POST", "/TestUrl", msg)
+        conn.request("POST", "/Move", str(mess)+"+"+mac)
         response = conn.getresponse()
         conn.close()
 
@@ -150,18 +155,8 @@ def start():
             print("[MAC RECEIVED]: " + mac)
             if re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower()): #https://stackoverflow.com/questions/7629643/how-do-i-validate-the-format-of-a-mac-address
                 mac_recv=True
-                #controllo che non ci sia un elemento nel dizionario con lo stesso mac
-                if mac in dict:
-                    print("[DISPOSITIVO GIA CONNESSO]: "+ mac)
-                    print("[DISCONNESSIONE] sto per chiudere la connessione"+ mac)
-                    #ho un elemento con lo stesso mac, devo chiudere la connessione, uccidere il thread ed eliminare l'elemento
-                    connessione=dict.get(mac)[0]
-                    thread=dict.get(mac)[1]
-                    thread.stop=True
-                    print("[CLOSED] thread chiuso correttamente")
-                    #uccidere thread
-    
-        
+                check_mac(mac,dict)
+            
         #id = conn.recv(1).decode(FORMAT)
         #if id == '1' : (sonars)
         thread = SonarThread(conn,addr)
@@ -175,6 +170,16 @@ def start():
         print(f"[CONNESSIONI ATTIVE] {threading.activeCount()-1}")
         
 
+def check_mac(mac,dict):
+    #controllo che non ci sia un elemento nel dizionario con lo stesso mac
+    if mac in dict:
+        print("[DISPOSITIVO GIA CONNESSO]: "+ mac)
+        print("[DISCONNESSIONE] sto per chiudere la connessione"+ mac)
+        #ho un elemento con lo stesso mac, devo chiudere la connessione, uccidere il thread ed eliminare l'elemento
+        connessione=dict.get(mac)[0]
+        thread=dict.get(mac)[1]
+        thread.stop=True
+        print("[CLOSED] thread chiuso correttamente")
 
 
 print(SERVER)
