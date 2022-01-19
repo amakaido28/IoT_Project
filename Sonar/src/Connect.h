@@ -1,7 +1,7 @@
 #ifndef CONNECT_H 
 #define CONNECT_H
 
-void setup_conn();
+void setup_conn(char);
 int disconnect_next();
 int wifi_next();
 int server_next();

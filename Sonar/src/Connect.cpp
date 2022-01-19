@@ -21,20 +21,15 @@ int timeout_server = 1000;
 
 uint8_t Mac[6];
 char Mac_str[18];
-
-uint8_t message[10];
-size_t size = 10;
+char id;
 
 
 void writeDataSonar(int data){
-  if(data>0)
-    client.print(F("Entrato!!!!!!!!!!"));
-  else
-    client.print(F("Uscito!!!!!!!!!!!"));
+  client.print(F(data));
 }
 
 
-void receiveDataRing(uint8_t* message){
+void receiveDataRing(uint8_t* message, size_t size){
     client.read(message, size);
 }
 
@@ -46,6 +41,7 @@ void writeDataRing(int data){
 
 void writeMac(){
   client.print(F(Mac_str));
+  client.print(F(id));
 }
 
 
@@ -117,9 +113,10 @@ int server_next(){
 }
 
 
-void setup_conn(){ 
+void setup_conn(char ID){ 
   WiFi.mode(WIFI_STA);
   WiFi.macAddress(Mac);
   sprintf(Mac_str, "%02x:%02x:%02x:%02x:%02x:%02x", Mac[0], 
        Mac[1], Mac[2], Mac[3], Mac[4], Mac[5]);
+  id = ID;
 }

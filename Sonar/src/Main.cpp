@@ -98,7 +98,7 @@ void setup(){
 
   setup_sonar();
 
-  setup_conn();
+  setup_conn('1');
 }
 
 

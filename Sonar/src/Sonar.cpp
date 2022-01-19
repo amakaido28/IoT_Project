@@ -4,8 +4,8 @@
 
 #define TRIG_PIN_IN 32
 #define ECHO_PIN_IN 33
-#define TRIG_PIN_OUT 14
-#define ECHO_PIN_OUT 12
+#define TRIG_PIN_OUT 26 //14
+#define ECHO_PIN_OUT 27 //12
 
 float distanza_riposo_in;
 float distanza_riposo_out;
