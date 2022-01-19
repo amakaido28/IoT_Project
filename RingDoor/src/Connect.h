@@ -1,11 +1,11 @@
 #ifndef CONNECT_H 
 #define CONNECT_H
 
-void setup_conn();
+void setup_conn(char);
 int disconnect_next();
 int wifi_next();
 int server_next();
-void receiveDataRing(uint8_t *);
+void receiveDataRing(uint8_t *, size_t);
 void writeDataRing(int);
 
 #endif

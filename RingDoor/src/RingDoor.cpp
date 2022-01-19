@@ -25,14 +25,15 @@ enum states_conn{
 
 int current_state_conn = disconnected;
 int data = 0;
-uint8_t message[10];
+uint8_t message[17];
+size_t size = 17;
 
 
 void show_message(){
   lcd.clear();
 
-  if(message != NULL)
-    lcd.print("Non sono in casa");
+  if((char*)message != "00:00:00:00:00:00")
+    lcd.print((char*) message);
   else
     lcd.print("Arriva!");
   
@@ -45,12 +46,16 @@ void send_mess(){
 
   if(current_state_conn == server_connected){
     writeDataRing(data);
-    receiveDataRing(message);
+    receiveDataRing(message, size);
   }
   else
-    for(int i=0; i<10; i++)
-      message[i]=0;
-  
+    for(int i=0; i<17; i++){
+      if(i==2 || i==5 || i==8 || i==11 || i==14)
+        message[i] = ':';
+      else
+        message[i] = '0';
+    }
+    
   show_message();
 }
 
@@ -114,7 +119,7 @@ void setup_env(){
 void setup() {
   setup_env();
 
-  setup_conn();
+  setup_conn('2');
 }
 
 
