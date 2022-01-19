@@ -6,7 +6,7 @@ const char* ssid = "FASTWEB-Famiglia";
 const char* password = "Vaiavanticosi3";
 
 const uint16_t port = 5050;
-const char* host = "192.168.1.172";
+const char* host = "192.168.1.145";
 
 WiFiClient client;
 
@@ -17,15 +17,15 @@ enum states_conn{
 };
 
 int future_state_conn;
-int timeout_server = 1000;
+int timeout_server = 800;
 
 uint8_t Mac[6];
-char Mac_str[18];
-char id;
+char Mac_str_id[20];
 
 
 void writeDataSonar(int data){
-  client.print(F(data));
+  Serial.println(data);
+  client.print(data);
 }
 
 
@@ -40,8 +40,7 @@ void writeDataRing(int data){
 
 
 void writeMac(){
-  client.print(F(Mac_str));
-  client.print(F(id));
+  client.print(F(Mac_str_id));
 }
 
 
@@ -116,7 +115,6 @@ int server_next(){
 void setup_conn(char ID){ 
   WiFi.mode(WIFI_STA);
   WiFi.macAddress(Mac);
-  sprintf(Mac_str, "%02x:%02x:%02x:%02x:%02x:%02x", Mac[0], 
-       Mac[1], Mac[2], Mac[3], Mac[4], Mac[5]);
-  id = ID;
+  sprintf(Mac_str_id, "%02x:%02x:%02x:%02x:%02x:%02x+%c", Mac[0], 
+       Mac[1], Mac[2], Mac[3], Mac[4], Mac[5], ID);
 }
