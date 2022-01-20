@@ -22,10 +22,11 @@ int timeout_server = 800;
 uint8_t Mac[6];
 char Mac_str_id[20];
 
+char package[4];
 
 void writeDataSonar(int data){
-  Serial.println(data);
-  client.print(data);
+  itoa(data, package, 10);
+  client.print(F(package));
 }
 
 
