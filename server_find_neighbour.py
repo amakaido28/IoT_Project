@@ -26,10 +26,7 @@ def get_receiver(id=message_default):
       connection.close()
       return message_default
     
-    
-
     cursor.execute(f"SELECT MAC, nome, cognome, indirizzo, chatID FROM JJ WHERE MAC!='{id}' AND presenza=0")
-
     data_neig = cursor.fetchone()
 
     if(data_neig == None):
@@ -41,15 +38,15 @@ def get_receiver(id=message_default):
 
     message_neighbour = "Ti arriverà il pacco di " + str(data_prop[1]) + " " + str(data_prop[2])
     message_prop = "Il tuo pacco è stato inviato a " + str(data_neig[1]) + " " + str(data_neig[2]) + " in " + str(data_neig[3])
-
     
     #send messages to bot telegram
     print(message_neighbour)
     print(message_prop)
-    connection.close()
-    message = str(data_neig[0])
 
-    return message
+    connection.close()
+    message_ringdoor = str(data_neig[0])
+
+    return message_ringdoor
 
 
 class requestHttpReceiver (BaseHTTPRequestHandler):
