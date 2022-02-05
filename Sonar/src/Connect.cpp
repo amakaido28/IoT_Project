@@ -31,7 +31,10 @@ void writeDataSonar(int data){
 
 
 void receiveDataRing(uint8_t* message, size_t size){
-    client.read(message, size);
+    while(client.read(message, size)==0);
+
+    Serial.println("ricevuto");
+    Serial.println((char*) message);
 }
 
 
@@ -46,7 +49,6 @@ void writeMac(){
 
 
 void initWiFi() {
-  //WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.println("Connecting to Wi-Fi...");
 
@@ -67,7 +69,6 @@ void ServerConnection(){
   uint8_t ret = client.connect(host, port, timeout_server);
 
   if(ret == true){
-    //Serial.println("Connected to server successful!");
     future_state_conn=server_connected;
     writeMac();
   }
