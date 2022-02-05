@@ -28,7 +28,8 @@ TOKEN = '5015312055:AAEZTBTeijRVNX-t4WbmKsuwLFlNvrvIAjI'
 logger = logging.getLogger(__name__)
 connection = pymysql.connect(host='ec2-3-69-25-163.eu-central-1.compute.amazonaws.com', user='as', password='sa', database='app_db', port=6033)
 
-MAC_ADDRESS, NAME, LAST_NAME, LOCATION, RESET_CONFIRM, RESET_CHOSE, RESET = range(7)
+#MAC_ADDRESS, NAME, LAST_NAME, LOCATION, RESET_CONFIRM, RESET_CHOSE, RESET = range(7)
+MAC_ADDRESS, NAME, LAST_NAME, LOCATION, RESET_CHOSE, RESET = range(6)
 
 nome=''
 cognome=''
@@ -85,7 +86,7 @@ def start(update: Update, context):
 
 def config(update: Update, context: CallbackContext) -> int:
     update.message.reply_text(
-        'Cominciamo la configurazione!\n'
+        'Cominciamo la configurazione!\nAnnullala lanciando il comando /cancel \n'
         'Inserisci il tuo nome'
     )
     return NAME
@@ -183,16 +184,20 @@ def reset(update: Update, context: CallbackContext) -> int:
     cursor = connection.cursor()
     chatId = update.effective_chat.id
     reset_num = cursor.execute("SELECT MAC, indirizzo FROM JJ WHERE chatID=%s", chatId)
+    print(reset_num)
     if (reset_num==0):
         update.message.reply_text(
         'Non è stato configurato nessun dispositivo'
         )   
         return ConversationHandler.END
     elif (reset_num == 1):
-        return RESET_CONFIRM
+        update.message.reply_text(
+        'Sei sicuro di voler resettare i tuoi dati? (si/no)\n'
+        )
+        return RESET
     elif (reset_num>1):
         data = cursor.fetchall()
-        str = 'Vuoi eliminare il dispositivo in:\n'
+        str = 'Puoi annullare il reset lanciando il comando /cancel \nVuoi eliminare il dispositivo in:\n'
         for d in data:
             str = str + d[1]+'\n'
         update.message.reply_text(
@@ -203,17 +208,22 @@ def reset(update: Update, context: CallbackContext) -> int:
 def resetchose(update: Update, context: CallbackContext) -> int:
     global reset_indirizzo
     reset_indirizzo = update.message.text
+    if reset_indirizzo == '/cancel':
+        update.message.reply_text(
+        'Operazione annullata'
+        )   
+        return ConversationHandler.END
     print(reset_indirizzo)
     update.message.reply_text(
         'Sei sicuro di voler resettare i tuoi dati? (si/no)\n'
     )
     return RESET
 
-def resetconfirm(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text(
-        'Sei sicuro di voler resettare i tuoi dati? (si/no)\n'
-    )
-    return RESET
+#def resetconfirm(update: Update, context: CallbackContext) -> int:
+ #   update.message.reply_text(
+  #      'Sei sicuro di voler resettare i tuoi dati? (si/no)\n'
+   # )
+    #return RESET
 
 def getresetresponse(update: Update, context: CallbackContext) -> int:
     reset_response = update.message.text
@@ -277,7 +287,7 @@ def main() -> None:
         entry_points=[CommandHandler('reset', reset)],
         states={
             RESET_CHOSE : [MessageHandler(Filters.text,resetchose)],
-            RESET_CONFIRM : [MessageHandler(Filters.text, resetconfirm)],
+            #RESET_CONFIRM : [MessageHandler(Filters.text, resetconfirm)],
             RESET: [MessageHandler(Filters.text, getresetresponse)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
