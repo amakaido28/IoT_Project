@@ -18,7 +18,9 @@ socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 socket.bind(ADDR) # tutto ciò che si connette a questo indirizzo incontrerà il socket
 
 macAddress = hex(uuid.getnode())
-time_wait = 2
+MacMatcher = "[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$"
+time_wait = 5
+
 string_server_write = "ec2-3-69-25-163.eu-central-1.compute.amazonaws.com:8000"
 string_server_read = "ec2-3-69-25-163.eu-central-1.compute.amazonaws.com:8001"
 
@@ -31,6 +33,7 @@ class RingDoorThread(threading.Thread):
         self.conn = args[0]
         self.addr = args[1]
         self.stop = False
+        self.lock = threading.Lock()
 
 
     def run(self):
@@ -38,15 +41,24 @@ class RingDoorThread(threading.Thread):
         connected=True
         while connected:
             try:
-                msg=self.conn.recv(6).decode(FORMAT)
+                msg=self.conn.recv(10).decode(FORMAT)
                 if msg==DISCONNECT_MESSAGE:
                     connected=False
 
                 print(f"[{self.addr}]: {msg}")
-                message = self.find_package_receiver(msg)
-                self.conn.send(message).encode(FORMAT)
+
+                message = self.find_package_receiver()
+                
+                message = message.replace(":", "")
+                print(message)
+
+                self.conn.send(bytes(message.encode(FORMAT)))
+                print("message_sent")
+
             except:
-                print("[TIMEOUT] sono passati più di due secondi")
+                print(f"[TIMEOUT] sono passati più di {time_wait} secondi")
+                if(self.lock.locked()):
+                    self.lock.release()
 
             if self.stop:
                 print("[ATTIVATO] self.stop")
@@ -55,21 +67,24 @@ class RingDoorThread(threading.Thread):
         self.conn.close()
 
 
-    def find_package_receiver(self, msg):
+    def find_package_receiver(self):
+        self.lock.acquire()
         global People
 
         if(People > 0):
-            message = "000000"
+            message = "00:00:00:00:00:00"
         else:
-            message = self.receive_from_cloud(msg)
+            message = self.receive_from_cloud()
+        
+        self.lock.release()
         return message
 
 
-    def receive_from_cloud(self, msg):
+    def receive_from_cloud(self):
         conn = http.HTTPConnection("127.0.0.1:8081")
-        conn.request("GET", "/Receiver", msg)
+        conn.request("GET", "/Receiver", "aa:bb:cc:dd:ee:ff")
         response = conn.getresponse()
-        receiver = response.read(6).decode(FORMAT)
+        receiver = response.read(17).decode(FORMAT)
         conn.close()
         return receiver
 
@@ -88,33 +103,27 @@ class SonarThread(threading.Thread):
         connected=True
         while connected:
             try:
-                # mi aspetto di ricevere ogni messaggio come "-1+MAC" oppure "1+MAC", cioè 20 caratteri.
                 # NB: -1 --> uscito, +1--> entrato
-                move=float(self.conn.recv(2).decode(FORMAT))
-                mac=self.conn.recv(17).decode(FORMAT)
-                # divido il messaggio di entrata/uscita dal mac address
-                #splitted=msg.split("+")
+                move=int(self.conn.recv(4).decode(FORMAT))
+        
                 print("messaggio ricevuto")
                 print(move)
-                print(mac)
-                #move=float(splitted[0])
-                #mac=splitted[1]
-                self.check_presenza(move,mac)
+                self.check_presenza(move)
                 print(f"[{self.addr}]: {move}")
+
             except:
-                print("[TIMEOUT] sono passati più di due secondi")
-            #msg=conn.recv(msg_length)
+                print(f"[TIMEOUT] sono passati più di {time_wait} secondi")
+                if(self.lock.locked()):
+                    self.lock.release()
             
             if self.stop:
                 print("[ATTIVATO] self.stop")
                 connected=False
             
-            #ma se volessimo mandare delle informazioni dal server al client
-            #conn.send("Messaggio ricevuto").encode(FORMAT)
         self.conn.close()
 
 
-    def check_presenza(self, move,mac):
+    def check_presenza(self, move):
         self.lock.acquire()  #per il thread safe
         global People
         print("[CHECK PRESENZA]")
@@ -122,21 +131,22 @@ class SonarThread(threading.Thread):
 
         if People <=0:
             People=0
-            self.write_msg_cloud(0,mac)
+            self.write_msg_cloud(0)
             print("non ce nessuno in casa")
 
         if People>=1:
-            self.write_msg_cloud(1,mac)
+            self.write_msg_cloud(1)
             print("c'è qualcuno in casa")
             
         self.lock.release()
 
 
-    def write_msg_cloud(self,mess,mac):
+    def write_msg_cloud(self,mess):
         print("[WRITE MSG TO CLOUD]")
         conn = http.HTTPConnection(string_server_write)
-        conn.request("POST", "/Move", str(mess)+"+"+mac)
+        conn.request("POST", "/Move", str(mess)+"+"+macAddress)
         response = conn.getresponse()
+        print("fatto")
         conn.close()
 
 
@@ -151,18 +161,21 @@ def start():
         #lo elimino e creo un nuovo thread
         mac_recv=False
         while mac_recv!=True :
-            mac=conn.recv(17).decode(FORMAT)
+            mac=conn.recv(19).decode(FORMAT)
+            print(mac)
+            stri = mac.split('+')
+            mac = stri[0]
+            id = stri[1]
             print("[MAC RECEIVED]: " + mac)
-            if re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower()): #https://stackoverflow.com/questions/7629643/how-do-i-validate-the-format-of-a-mac-address
+            if re.match(MacMatcher, mac.lower()): #https://stackoverflow.com/questions/7629643/how-do-i-validate-the-format-of-a-mac-address
                 mac_recv=True
                 check_mac(mac,dict)
             
-        #id = conn.recv(1).decode(FORMAT)
-        #if id == '1' : (sonars)
-        thread = SonarThread(conn,addr)
+        if id == '1' : #(sonars)
+            thread = SonarThread(conn,addr)
         
-        #if id == '2': (schermo)
-        #thread = RingDoorThread(conn, addr)
+        if id == '2': #(schermo)
+            thread = RingDoorThread(conn, addr)
 
         #inserisco mac e (ip e porta) e conn nel dizionario
         dict[mac]=[conn,thread]
