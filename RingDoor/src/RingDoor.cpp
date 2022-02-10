@@ -1,9 +1,15 @@
 #include <Arduino.h>
 #include <LiquidCrystal.h>
 #include <Connect.h>
-#define PUSH_BUTTON 7
+#define PUSH_BUTTON 12
 
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+const int rs = 32;
+const int en = 33;
+const int d4 = 19;
+const int d5 = 5;
+const int d6 = 17;
+const int d7 = 16;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 enum disp_states {
   riposo,
@@ -25,17 +31,27 @@ enum states_conn{
 
 int current_state_conn = disconnected;
 int data = 0;
-uint8_t message[17];
-size_t size = 17;
+uint8_t message[12];
+size_t size = 12;
+
+
+void show_timer(){
+  lcd.setCursor(0,1);
+  lcd.print("   ");
+  lcd.setCursor(0,1);
+  lcd.print(String(timeout/1000 - (millis()-timer)/1000));
+}
 
 
 void show_message(){
   lcd.clear();
 
-  if((char*)message != "00:00:00:00:00:00")
-    lcd.print((char*) message);
+  if(strcmp((char*) message, "000000000000") == 0)
+    lcd.print("Arriva presto");
+  else if (strcmp((char*) message, "FFFFFFFFFFFF") == 0)
+    lcd.print("Nessun vicino");
   else
-    lcd.print("Arriva!");
+    lcd.print((char*) message);
   
   show_timer();
 }
@@ -49,21 +65,9 @@ void send_mess(){
     receiveDataRing(message, size);
   }
   else
-    for(int i=0; i<17; i++){
-      if(i==2 || i==5 || i==8 || i==11 || i==14)
-        message[i] = ':';
-      else
-        message[i] = '0';
-    }
+    strcpy((char*) message, "FFFFFFFFFFFF");
     
   show_message();
-}
-
-
-void show_timer(){
-  lcd.setCursor(0,1);
-  lcd.print(String(timeout/1000 - (millis()-timer)/1000));
-  delay(200);
 }
 
 
@@ -85,6 +89,7 @@ void display_next(){
   if(millis()-timer>timeout){
     future_state = riposo;
     lcd.clear();
+    lcd.print("Hello Stranger!");
   }
   if(current_state == display && ButtonState == 1)
     timer = millis();
@@ -117,6 +122,8 @@ void setup_env(){
 
 
 void setup() {
+  Serial.begin(9600);
+
   setup_env();
 
   setup_conn('2');
