@@ -47,7 +47,7 @@ class requestHttpAI (BaseHTTPRequestHandler):
 
 
 def run():   
-  server_address = ("127.0.0.1", port_server)  
+  server_address = (host_server, port_server)  
   httpd = HTTPServer(server_address, requestHttpAI)   
   httpd.serve_forever() 
 
