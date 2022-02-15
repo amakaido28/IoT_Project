@@ -2,7 +2,7 @@ import socket
 import threading
 import re
 import http.client as http
-import uuid
+from getmac import get_mac_address as gma
 #mettiamo ciascun gestore di messaggio in un thread diverso, ed ogni thread gestisce la connessione con un singolo client
 
 HEADER=64 #64 bytes
@@ -17,7 +17,8 @@ DISCONNECT_MESSAGE="!DISCONNECT" # quando ricevo questo messaggio dal client mi 
 socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 socket.bind(ADDR) # tutto ciò che si connette a questo indirizzo incontrerà il socket
 
-macAddress = hex(uuid.getnode())
+macAddress = gma()
+
 MacMatcher = "[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$"
 time_wait = 5
 
@@ -42,13 +43,10 @@ class RingDoorThread(threading.Thread):
         while connected:
             try:
                 msg=self.conn.recv(10).decode(FORMAT)
-                if msg==DISCONNECT_MESSAGE:
-                    connected=False
 
                 print(f"[{self.addr}]: {msg}")
 
                 message = self.find_package_receiver()
-                
                 message = message.replace(":", "")
                 print(message)
 
@@ -81,22 +79,32 @@ class RingDoorThread(threading.Thread):
 
 
     def receive_from_cloud(self):
-        conn = http.HTTPConnection("127.0.0.1:8081")
-        conn.request("GET", "/Receiver", "aa:bb:cc:dd:ee:ff")
-        response = conn.getresponse()
-        receiver = response.read(17).decode(FORMAT)
+        try:
+            conn = http.HTTPConnection(string_server_read)
+            conn.request("GET", "/Receiver", macAddress)
+
+            response = conn.getresponse()
+            content_length = int(response.getheader('Content-Length'))
+            receiver = response.read(content_length).decode(FORMAT)
+
+        except:
+            print("errore")
+            receiver = "FF:FF:FF:FF:FF:FF"
+
         conn.close()
         return receiver
 
 
 
 class SonarThread(threading.Thread):
+
     def __init__(self, *args):
         super(SonarThread,self).__init__()
         self.conn = args[0]
         self.addr = args[1]
         self.stop = False
         self.lock = threading.Lock()
+
 
     def run(self):
         print(f"[NUOVA CONNESSIONE] {self.addr} connesso.")
@@ -105,11 +113,9 @@ class SonarThread(threading.Thread):
             try:
                 # NB: -1 --> uscito, +1--> entrato
                 move=int(self.conn.recv(4).decode(FORMAT))
-        
-                print("messaggio ricevuto")
-                print(move)
-                self.check_presenza(move)
                 print(f"[{self.addr}]: {move}")
+                
+                self.check_presenza(move)
 
             except:
                 print(f"[TIMEOUT] sono passati più di {time_wait} secondi")
@@ -143,10 +149,16 @@ class SonarThread(threading.Thread):
 
     def write_msg_cloud(self,mess):
         print("[WRITE MSG TO CLOUD]")
-        conn = http.HTTPConnection(string_server_write)
-        conn.request("POST", "/Move", str(mess)+"+"+macAddress)
-        response = conn.getresponse()
-        print("fatto")
+        try:
+            print("provo a conn")
+            conn = http.HTTPConnection(string_server_write)
+            conn.request("POST", "/Move", bytes(str(mess) + "+" + macAddress, 'utf-8'))
+            response = conn.getresponse()
+            print("fatto")
+
+        except:
+            print("errore")
+        
         conn.close()
 
 
@@ -167,7 +179,7 @@ def start():
             mac = stri[0]
             id = stri[1]
             print("[MAC RECEIVED]: " + mac)
-            if re.match(MacMatcher, mac.lower()): #https://stackoverflow.com/questions/7629643/how-do-i-validate-the-format-of-a-mac-address
+            if re.match(MacMatcher, mac.lower()): 
                 mac_recv=True
                 check_mac(mac,dict)
             
@@ -183,13 +195,13 @@ def start():
         print(f"[CONNESSIONI ATTIVE] {threading.activeCount()-1}")
         
 
+
 def check_mac(mac,dict):
     #controllo che non ci sia un elemento nel dizionario con lo stesso mac
     if mac in dict:
         print("[DISPOSITIVO GIA CONNESSO]: "+ mac)
         print("[DISCONNESSIONE] sto per chiudere la connessione"+ mac)
-        #ho un elemento con lo stesso mac, devo chiudere la connessione, uccidere il thread ed eliminare l'elemento
-        connessione=dict.get(mac)[0]
+        #ho un elemento con lo stesso mac, devo uccidere il thread ed eliminare l'elemento
         thread=dict.get(mac)[1]
         thread.stop=True
         print("[CLOSED] thread chiuso correttamente")
