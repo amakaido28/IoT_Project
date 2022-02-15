@@ -68,6 +68,8 @@ void setup_sonar(){
 void  set_activity(){
   distanza_in = get_distance(ECHO_PIN_IN, TRIG_PIN_IN);
   distanza_out = get_distance(ECHO_PIN_OUT, TRIG_PIN_OUT);
+  Serial.println(distanza_in);
+  Serial.println(distanza_out);
   
   in_active=0;
   out_active=0;

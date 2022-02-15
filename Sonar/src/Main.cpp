@@ -111,6 +111,6 @@ void loop(){
 
   set_state_sonar();
   
-  delay(300);
+  //delay(300);
   
 }
