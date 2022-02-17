@@ -9,8 +9,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         print(self.path)
         length = int(self.headers['Content-length'])
         msg=self.rfile.read1(length)
-        #msg = cursor.fetchall()
-        #sto ricevendo "0+MAC" oppure "1+MAC"
+       
         #scrittura su db
         splitted=msg.split("+")
         move=splitted[0]
