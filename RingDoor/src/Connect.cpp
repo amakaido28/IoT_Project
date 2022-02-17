@@ -2,8 +2,8 @@
 #include <WiFi.h>
 #include <Connect.h>
 
-const char* ssid = "iPhone Lorenzo";
-const char* password = "12345678";
+const char* ssid = "Wi-Fi";
+const char* password = "Password";
 
 const uint16_t port = 5050;
 const char* host = "172.20.10.2";
