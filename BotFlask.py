@@ -16,7 +16,7 @@ from telegram.ext import (
     CallbackContext,
 )
 
-appname = "IOT - sample1"
+appname = "Telegram Bot"
 app = Flask(appname)
 
 # Enable logging
@@ -26,7 +26,7 @@ logging.basicConfig(
 
 TOKEN = '5015312055:AAEZTBTeijRVNX-t4WbmKsuwLFlNvrvIAjI'
 logger = logging.getLogger(__name__)
-connection = pymysql.connect(host='ec2-3-69-25-163.eu-central-1.compute.amazonaws.com', user='as', password='sa', database='app_db', port=6033)
+
 
 #MAC_ADDRESS, NAME, LAST_NAME, LOCATION, RESET_CONFIRM, RESET_CHOSE, RESET = range(7)
 MAC_ADDRESS, NAME, LAST_NAME, LOCATION, RESET_CHOSE, RESET = range(6)
@@ -42,11 +42,9 @@ reset_indirizzo=''
 reset_num=0
 
 
-
-
 class FlaskThread(threading.Thread):
     def run(self) -> None:
-        app.run(port=5000, threaded=True)
+        app.run(port=5001, threaded=True,host="0.0.0.0")
 
 
 class TelegramThread(threading.Thread):
@@ -55,12 +53,12 @@ class TelegramThread(threading.Thread):
 
 @app.route("/vicino", methods=['POST'])
 def proviamo():
-    print('è entrato')
+    print('Ã¨ entrato')
     data = request.form
     print(data)
     #nome_prop, cognome_prop, chatID_prop, nome_neig, cognome_neig, ind_neig, chatID_neig
-    message_neig = "Ti arriverà il pacco di " + data['nome_prop'] + " " + data['cognome_prop'] + ' in ' + data['ind_neig']
-    message_prop = "Il tuo pacco è stato inviato a " + data['nome_neig'] + " " + data['cognome_neig'] + " in " + data['ind_neig']
+    message_neig = "Ti arriverÃ  il pacco di " + data['nome_prop'] + " " + data['cognome_prop'] + ' in ' + data['ind_neig']
+    message_prop = "Il tuo pacco Ã¨ stato inviato a " + data['nome_neig'] + " " + data['cognome_neig'] + " in " + data['ind_neig']
     send_text_neig = 'https://api.telegram.org/bot' + TOKEN + '/sendMessage?chat_id=' + data['chatID_neig'] + '&parse_mode=Markdown&text=' + message_neig
     send_text_prop = 'https://api.telegram.org/bot' + TOKEN + '/sendMessage?chat_id=' + data['chatID_prop'] + '&parse_mode=Markdown&text=' + message_prop
     resp_neig = requests.get(send_text_neig)
@@ -68,11 +66,6 @@ def proviamo():
     print(resp_neig.status_code)
     print(resp_prop.status_code)
     return str(resp_neig.status_code)
-
-
-
-
-
 
 
 def start(update: Update, context):
@@ -117,7 +110,7 @@ def getlast_name(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
     else:
         update.message.reply_text(
-        'Inserisci l''indirizzo MAC del dispositivo scritto sulla scatola'
+        "Inserisci l'indirizzo MAC del dispositivo scritto sulla scatola"
     )
     return MAC_ADDRESS
 
@@ -153,14 +146,13 @@ def getlocation(update: Update, context: CallbackContext) -> int:
     location = geolocator.reverse(str(latitudine) + ", " + str(longitudine))
     indirizzo = location.raw['address']['road'] + ', ' + location.raw['address']['house_number']
     print(indirizzo)
-    #print(location.address)
-    #print(location.raw)
     
     update.message.reply_text(
         'Perfetto, configurazione completata!'
     )
 
     #AGGIUNGERE AL DATABASE 
+    connection = pymysql.connect(host='ec2-3-69-25-163.eu-central-1.compute.amazonaws.com', user='as', password='sa', database='app_db', port=6033)
     cursor = connection.cursor()
     chatId = update.effective_chat.id
     #point = "POINT(" + str(latitudine) + " " + str(longitudine) + ")"
@@ -169,6 +161,7 @@ def getlocation(update: Update, context: CallbackContext) -> int:
     sql =  "INSERT INTO JJ (presenza, nome, cognome, MAC, indirizzo, chatID, latitudine, longitudine) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)" 
     cursor.execute(sql, (prova, nome, cognome, mac_address, indirizzo, chatId, latitudine, longitudine))
     connection.commit()
+    connection.close()
 
     return ConversationHandler.END
 
@@ -181,13 +174,16 @@ def cancel(update: Update, context: CallbackContext) -> int:
 
 def reset(update: Update, context: CallbackContext) -> int:
     global reset_num
+    connection = pymysql.connect(host='ec2-3-69-25-163.eu-central-1.compute.amazonaws.com', user='as', password='sa', database='app_db', port=6033)
     cursor = connection.cursor()
     chatId = update.effective_chat.id
     reset_num = cursor.execute("SELECT MAC, indirizzo FROM JJ WHERE chatID=%s", chatId)
     print(reset_num)
+    data=cursor.fetchall()
+    connection.close()
     if (reset_num==0):
         update.message.reply_text(
-        'Non è stato configurato nessun dispositivo'
+        'Non Ã¨ stato configurato nessun dispositivo'
         )   
         return ConversationHandler.END
     elif (reset_num == 1):
@@ -196,7 +192,6 @@ def reset(update: Update, context: CallbackContext) -> int:
         )
         return RESET
     elif (reset_num>1):
-        data = cursor.fetchall()
         str = 'Puoi annullare il reset lanciando il comando /cancel \nVuoi eliminare il dispositivo in:\n'
         for d in data:
             str = str + d[1]+'\n'
@@ -227,6 +222,7 @@ def resetchose(update: Update, context: CallbackContext) -> int:
 
 def getresetresponse(update: Update, context: CallbackContext) -> int:
     reset_response = update.message.text
+    connection = pymysql.connect(host='ec2-3-69-25-163.eu-central-1.compute.amazonaws.com', user='as', password='sa', database='app_db', port=6033)
     if (reset_response.lower() == 'si' and reset_num==1): 
         print(reset_response)
         cursor = connection.cursor()
@@ -237,7 +233,6 @@ def getresetresponse(update: Update, context: CallbackContext) -> int:
         update.message.reply_text(
         'Reset effettuato correttamente!'
         )
-        return ConversationHandler.END
     elif (reset_response.lower() == 'si'): 
         print(reset_response)
         print(reset_num)
@@ -249,17 +244,18 @@ def getresetresponse(update: Update, context: CallbackContext) -> int:
         update.message.reply_text(
         'Reset effettuato correttamente!'
         )
-        return ConversationHandler.END
     elif (reset_response.lower() == 'no'):
         update.message.reply_text(
             'Ok! Nessun reset effettuato'
         )
-        return ConversationHandler.END
     else:
         update.message.reply_text(
             'Devi rispondere si o no'
         )
+        connection.close()
         return RESET
+    connection.close()
+    return ConversationHandler.END
 
 def main() -> None:
     """Run the bot."""
