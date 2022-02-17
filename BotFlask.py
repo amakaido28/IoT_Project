@@ -19,7 +19,6 @@ from telegram.ext import (
 appname = "Telegram Bot"
 app = Flask(appname)
 
-# Enable logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
@@ -27,8 +26,6 @@ logging.basicConfig(
 TOKEN = '5015312055:AAEZTBTeijRVNX-t4WbmKsuwLFlNvrvIAjI'
 logger = logging.getLogger(__name__)
 
-
-#MAC_ADDRESS, NAME, LAST_NAME, LOCATION, RESET_CONFIRM, RESET_CHOSE, RESET = range(7)
 MAC_ADDRESS, NAME, LAST_NAME, LOCATION, RESET_CHOSE, RESET = range(6)
 
 nome=''
@@ -56,7 +53,6 @@ def proviamo():
     print('Ã¨ entrato')
     data = request.form
     print(data)
-    #nome_prop, cognome_prop, chatID_prop, nome_neig, cognome_neig, ind_neig, chatID_neig
     message_neig = "Ti arriverÃ  il pacco di " + data['nome_prop'] + " " + data['cognome_prop'] + ' in ' + data['ind_neig']
     message_prop = "Il tuo pacco Ã¨ stato inviato a " + data['nome_neig'] + " " + data['cognome_neig'] + " in " + data['ind_neig']
     send_text_neig = 'https://api.telegram.org/bot' + TOKEN + '/sendMessage?chat_id=' + data['chatID_neig'] + '&parse_mode=Markdown&text=' + message_neig
@@ -151,13 +147,10 @@ def getlocation(update: Update, context: CallbackContext) -> int:
         'Perfetto, configurazione completata!'
     )
 
-    #AGGIUNGERE AL DATABASE 
+    #AGGIUNTA AL DATABASE 
     connection = pymysql.connect(host='ec2-3-69-25-163.eu-central-1.compute.amazonaws.com', user='as', password='sa', database='app_db', port=6033)
     cursor = connection.cursor()
     chatId = update.effective_chat.id
-    #point = "POINT(" + str(latitudine) + " " + str(longitudine) + ")"
-    #sql =  "INSERT INTO JJ (presenza, nome, cognome, MAC, posizione, indirizzo, chatID) VALUES (%s, %s, %s, %s, ST_GeomFromText(%s, 4326), %s, %s)" 
-    #cursor.execute(sql, (prova, nome, cognome, mac_address, point, indirizzo, chatId))
     sql =  "INSERT INTO JJ (presenza, nome, cognome, MAC, indirizzo, chatID, latitudine, longitudine) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)" 
     cursor.execute(sql, (prova, nome, cognome, mac_address, indirizzo, chatId, latitudine, longitudine))
     connection.commit()
@@ -214,12 +207,6 @@ def resetchose(update: Update, context: CallbackContext) -> int:
     )
     return RESET
 
-#def resetconfirm(update: Update, context: CallbackContext) -> int:
- #   update.message.reply_text(
-  #      'Sei sicuro di voler resettare i tuoi dati? (si/no)\n'
-   # )
-    #return RESET
-
 def getresetresponse(update: Update, context: CallbackContext) -> int:
     reset_response = update.message.text
     connection = pymysql.connect(host='ec2-3-69-25-163.eu-central-1.compute.amazonaws.com', user='as', password='sa', database='app_db', port=6033)
@@ -258,17 +245,13 @@ def getresetresponse(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 def main() -> None:
-    """Run the bot."""
-    # Create the Updater and pass it your bot's token.
+
     updater = Updater(TOKEN)
 
-    # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
-
 
     dispatcher.add_handler(CommandHandler("start", start))
 
-    # Add conversation handler with the states
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('config', config)],
         states={
@@ -283,7 +266,6 @@ def main() -> None:
         entry_points=[CommandHandler('reset', reset)],
         states={
             RESET_CHOSE : [MessageHandler(Filters.text,resetchose)],
-            #RESET_CONFIRM : [MessageHandler(Filters.text, resetconfirm)],
             RESET: [MessageHandler(Filters.text, getresetresponse)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
@@ -292,12 +274,8 @@ def main() -> None:
     dispatcher.add_handler(conv_handler)
     dispatcher.add_handler(conv_handler2)
 
-    # Start the Bot
     updater.start_polling()
 
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
 
