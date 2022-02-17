@@ -3,6 +3,7 @@ import threading
 import re
 import http.client as http
 from getmac import get_mac_address as gma
+
 #mettiamo ciascun gestore di messaggio in un thread diverso, ed ogni thread gestisce la connessione con un singolo client
 
 HEADER=64 #64 bytes
@@ -15,7 +16,7 @@ DISCONNECT_MESSAGE="!DISCONNECT" # quando ricevo questo messaggio dal client mi 
 
 #socket.AF_INET -> dice al socket che tipi di ip accettiamo, in questo caso indirizzi ipv4
 socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-socket.bind(ADDR) # tutto ciò che si connette a questo indirizzo incontrerà il socket
+socket.bind(ADDR) 
 
 macAddress = gma()
 
@@ -48,13 +49,11 @@ class RingDoorThread(threading.Thread):
 
                 message = self.find_package_receiver()
                 message = message.replace(":", "")
-                print(message)
 
                 self.conn.send(bytes(message.encode(FORMAT)))
                 print("message_sent")
 
             except:
-                print(f"[TIMEOUT] sono passati più di {time_wait} secondi")
                 if(self.lock.locked()):
                     self.lock.release()
 
@@ -118,7 +117,6 @@ class SonarThread(threading.Thread):
                 self.check_presenza(move)
 
             except:
-                print(f"[TIMEOUT] sono passati più di {time_wait} secondi")
                 if(self.lock.locked()):
                     self.lock.release()
             
@@ -150,7 +148,6 @@ class SonarThread(threading.Thread):
     def write_msg_cloud(self,mess):
         print("[WRITE MSG TO CLOUD]")
         try:
-            print("provo a conn")
             conn = http.HTTPConnection(string_server_write)
             conn.request("POST", "/Move", bytes(str(mess) + "+" + macAddress, 'utf-8'))
             response = conn.getresponse()
@@ -183,7 +180,7 @@ def start():
                 mac_recv=True
                 check_mac(mac,dict)
             
-        if id == '1' : #(sonars)
+        if id == '1' : #(sonar)
             thread = SonarThread(conn,addr)
         
         if id == '2': #(schermo)
